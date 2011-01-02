@@ -47,6 +47,7 @@ public class Combiner {
 		Config cfg = new Config();
 		CmdLineParser parser = new CmdLineParser(cfg);
 
+		Writer out = null;
 		try {
 			//parse the arguments
 			parser.parseArgument(args);
@@ -64,7 +65,6 @@ public class Combiner {
 			cfg.setCharset(charset);
 
 			File outputFile = cfg.getOutputFile();
-			Writer out = null;
 			if (outputFile == null) {
 				out = new OutputStreamWriter(System.out, cfg.getCharset());
 			} else {
@@ -85,6 +85,14 @@ public class Combiner {
 			return;
 		} catch (Exception e) {
 			e.printStackTrace();
+		} finally {
+			if (out != null) {
+				try {
+					out.close();
+				} catch(Exception ex) {
+					ex.printStackTrace();
+				}
+			}
 		}
 	}
 
