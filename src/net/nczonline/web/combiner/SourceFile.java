@@ -23,37 +23,27 @@
 package net.nczonline.web.combiner;
 
 
-import java.io.*;
-import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
-public class SourceFile {
+public class SourceFile implements Comparable<SourceFile> {
 
-    private File file = null;
-    private ArrayList dependencies = null;
+    private final String name;
+    private final Set<SourceFile> dependencies = new HashSet<SourceFile>();
     private String contents = null;
     
     /**
      * Creates a new SourceFile based on a file.
-     * @param file
+     * @param name
      */
-    public SourceFile(File file){
-        this.file = file;
-        dependencies = new ArrayList();
+    public SourceFile(String name){
+        this.name = name;
     }
 
-    public File getFile() {
-        return file;
-    }
-    
     public String getName(){
-        return file.getAbsolutePath();
+        return name;
     }
     
-    public String getDirectory(){
-        String path = file.getAbsolutePath();
-        return path.substring(0, path.lastIndexOf(File.separator)+1);
-    }
-
     public String getContents() {
         return contents;
     }
@@ -66,13 +56,7 @@ public class SourceFile {
         dependencies.add(dependency);
     }
     
-    public SourceFile[] getDependencies() {
-        SourceFile[] deps = new SourceFile[dependencies.size()];
-        dependencies.toArray(deps);
-        return deps;
-    }
-    
-    public int getDependencyCount(){
+    public int getDependencySize(){
         return dependencies.size();
     }
     
@@ -80,21 +64,58 @@ public class SourceFile {
         return !dependencies.isEmpty();                
     }
     
-    public boolean hasDependency(String filename){
-        boolean found = false;
-        for (int i=0; i < dependencies.size() && !found; i++){
-            SourceFile temp = (SourceFile) dependencies.get(i);
-            found = temp.getName().equals(filename);
-        }
-        return found;        
-    }
-    
-    public boolean hasDependency(File file){
-        return hasDependency(file.getAbsolutePath());       
-    }
-    
-    public boolean hasDependency(SourceFile file){
-        return hasDependency(file.getName());
-    }
-    
+	public boolean hasDependency(SourceFile s) {
+		return dependencies.contains(s);
+	}
+	
+	/**
+	 * if there's no contents, then it needs to be processed
+	 * if it already has dependencies, then it's already been processed 
+	 * (prevents infinite loop if a circular dependency is detected)
+	 * 
+	 * @return
+	 */
+	public boolean isReady() {
+		return getContents() != null || hasDependencies();
+	}
+	
+	@Override
+	public int hashCode() {
+		return 31*getName().hashCode();
+	}
+
+	@Override
+	public int compareTo(SourceFile s) {
+		if (equals(s)) {
+			return 0;
+		}
+		if (hasDependency(s)) {
+			return 1;
+		}
+		if(s.hasDependency(this)) {
+			return -1;
+		}
+		int d = getDependencySize() - s.getDependencySize();
+		if (d == 0) {
+			return 1;
+		}
+		return d;
+	}
+	
+	@Override
+	public boolean equals(Object o) {
+		if (!(o instanceof SourceFile)) {
+			return false;
+		}
+		SourceFile s = (SourceFile)o;
+		if (this == s || getName().equals(s.getName())) {
+			return true;
+		}
+		return false;
+	}
+	
+	@Override
+	public String toString() {
+		return getName();
+	}
 }
