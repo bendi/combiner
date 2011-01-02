@@ -69,7 +69,7 @@ public class FileCombiner {
 		File[] files = getFiles(filenames);
 		combine(files, out);
 	}
-	
+
 	private Collection<SourceFile> processSourceFiles(Collection<File> files) {
 		for(File depFile : files) {
 			//get a source file object
@@ -116,9 +116,9 @@ public class FileCombiner {
 			while((line = in.readLine()) != null) {
 				if (skipRequire) {
 					if (line.equals("};")) {
+						fileData.append("sky.require = function(){};\n");
 						skipRequire = false;
 					}
-					fileData.append("sky.require = function(){};\n");
 				} else if (line.startsWith("sky.require("))  {
 					String filename = f(line);
 					foundDeps.add(getDep(filename, sourceFile));
