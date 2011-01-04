@@ -37,8 +37,6 @@ import org.kohsuke.args4j.CmdLineParser;
 
 public class Combiner {
 
-	public static final String PATH_PREFIX = "src/";
-
 	/**
 	 * @param args the command line arguments
 	 */
@@ -74,7 +72,7 @@ public class Combiner {
 				out = new OutputStreamWriter(new FileOutputStream(outputFile), cfg.getCharset());
 			}
 
-			FileCombiner combiner = new FileCombiner(cfg);
+			FileCombiner combiner = new JsFileCombiner(cfg);
 			combiner.combine(cfg.getArguments().toArray(new String[0]), out);
 
 

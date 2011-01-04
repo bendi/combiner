@@ -36,17 +36,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-public class FileCombiner {
-
-	private static final String
-		SKY_JS_NAME = "sky.js",
-		SKY_CLASS_NAME = "sky/_kernel/Class.js";
+public abstract class FileCombiner {
 
 	private Map<String, SourceFile> sourceFiles = new HashMap<String, SourceFile>();
 	private final Config cfg;
+	private final String pathPrefix;
 
-	public FileCombiner(Config cfg) {
+	public FileCombiner(Config cfg, String pathPrefix) {
 		this.cfg = cfg;
+		this.pathPrefix = pathPrefix;
 	}
 
 	/**
@@ -55,9 +53,8 @@ public class FileCombiner {
 	 * @param out
 	 */
 	public void combine(File[] files, Writer out){
-		Collection<SourceFile> foundFiles = processSourceFiles(Arrays.asList(files));
-		Collection<SourceFile> finalFiles = constructFileList(foundFiles);
-		writeToOutput(finalFiles, out);
+		Collection<SourceFile> sourceFiles = processSourceFiles(Arrays.asList(files));
+		writeToOutput(sourceFiles, out);
 	}
 
 	/**
@@ -80,7 +77,7 @@ public class FileCombiner {
 				processSourceFiles(foundDeps);
 			}
 		}
-		return sourceFiles.values();
+		return new TreeSet<SourceFile>(sourceFiles.values());
 	}
 
 	private SourceFile getSourceFile(File file) {
@@ -92,65 +89,49 @@ public class FileCombiner {
 	}
 
 	private Collection<File> processSourceFile(SourceFile sourceFile) {
-		Set<File> foundDeps = new HashSet<File>(){
-			private static final long serialVersionUID = 1L;
-			public boolean add(File f) {
-				if (f == null) {
-					return false;
-				}
-				return super.add(f);
-			}
-		};
-
+		BufferedReader in = null;
 		try {
-			BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(sourceFile.getName()), cfg.getCharset()));
+			in = new BufferedReader(new InputStreamReader(new FileInputStream(sourceFile.getName()), cfg.getCharset()));
 
 			log("Processing file '" + sourceFile.getName() + "'");
 
-			// all files have implicit dependency on sky.js
-			foundDeps.add(getDep(SKY_JS_NAME, sourceFile));
-
-			StringBuffer fileData = new StringBuffer();
-			String line = null;
-			boolean skipRequire = false;
-			while((line = in.readLine()) != null) {
-				if (skipRequire) {
-					if (line.equals("};")) {
-						fileData.append("sky.require = function(){};\n");
-						skipRequire = false;
-					}
-				} else if (line.startsWith("sky.require("))  {
-					String filename = f(line);
-					foundDeps.add(getDep(filename, sourceFile));
-				} else if(line.contains("new sky.Class(")) {
-					foundDeps.add(getDep(SKY_CLASS_NAME, sourceFile));
-					fileData.append(line).append("\n");
-				} else if(line.contains("sky.require = function")) {
-					skipRequire = true;
-				} else if(line.contains("sky.require")) {
-					// skip sky.require calls
-				} else {
-					fileData.append(line).append("\n");
-				}
-			}
+			Collection<File> foundDeps = processFile(in, sourceFile);
 			if (foundDeps.isEmpty()) {
 				log("... No dependencies found");
 			}
-			sourceFile.setContents(fileData.toString());
-			in.close();
+			return foundDeps;
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.exit(1);
+		} finally {
+			if (in != null) {
+				try {
+					in.close();
+				} catch(Exception e) {
+					e.printStackTrace();
+				}
+			}
 		}
-		return foundDeps;
+		return null;
 	}
 
-	private static String f(String require) {
-		return require.replace("sky.require(\"", "").replace("\");", "").replaceAll("\\.", "/") + ".js";
-	}
+	/**
+	 *
+	 * @param in
+	 * @param sourceFile
+	 * @return
+	 * @throws IOException
+	 */
+	protected abstract Collection<File> processFile(BufferedReader in, SourceFile sourceFile) throws IOException;
 
-	private File getDep(String filename, SourceFile sourceFile) {
-		File depFile = new File(Combiner.PATH_PREFIX + filename);
+	/**
+	 *
+	 * @param filename
+	 * @param sourceFile
+	 * @return
+	 */
+	protected File getDep(String filename, SourceFile sourceFile) {
+		File depFile = new File(pathPrefix + filename);
 
 		//verify that the file actually exists
 		if (!depFile.isFile()){
@@ -158,15 +139,14 @@ public class FileCombiner {
 			System.exit(1);
 		}
 
-		if (isSkyJs(sourceFile)) {
-			return null;
-		}
-
 		log("... has dependency on " + filename);
 		//get a source file object
 		SourceFile depSourceFile = getSourceFile(depFile);
 
-		sourceFile.addDependency(depSourceFile);
+		if (!sourceFile.addDependency(depSourceFile)) {
+			error("Circular dependencies: '" + depSourceFile.getName() + "' and '" + sourceFile.getName() + "'");
+			System.exit(1);
+		}
 		//if there's no contents, then it needs to be processed
 		if (depSourceFile.getContents() == null){
 			return depFile;
@@ -175,33 +155,11 @@ public class FileCombiner {
 		return null;
 	}
 
-	private boolean isSkyJs(SourceFile sourceFile) {
-		return sourceFile.getName().contains(SKY_JS_NAME);
-	}
-
-	private Collection<SourceFile> constructFileList(Collection<SourceFile> foundFiles){
-		SourceFile[] files = foundFiles.toArray(new SourceFile[0]);
-
-		//check for circular references
-		for (int i=0; i < files.length; i++){
-
-			log("Verifying dependencies of '" + files[i].getName() + "'");
-
-			for (int j=i+1; j < files.length; j++){
-
-				boolean dependsOn = files[i].hasDependency(files[j]);
-				boolean isDependencyOf = files[j].hasDependency(files[i]);
-
-				if (dependsOn && isDependencyOf){
-					error("Circular dependencies: '" + files[i].getName() + "' and '" + files[j].getName() + "'");
-					System.exit(1);
-				}
-			}
-		}
-
-		return new TreeSet<SourceFile>(foundFiles);
-	}
-
+	/**
+	 *
+	 * @param finalFiles
+	 * @param out
+	 */
 	private void writeToOutput(Collection<SourceFile> finalFiles, Writer out){
 		try {
 			boolean separator = cfg.isSeparator();
@@ -218,11 +176,16 @@ public class FileCombiner {
 		}
 	}
 
+	/**
+	 *
+	 * @param filenames
+	 * @return
+	 */
 	private File[] getFiles(String[] filenames) {
 		Set<File> files = new HashSet<File>();
 
 		for(String filename : filenames) {
-			File file = new File(Combiner.PATH_PREFIX + filename);
+			File file = new File(pathPrefix + filename);
 			if (file.isFile()){
 				files.add(file);
 				log("Adding file '" + file.getAbsolutePath() + "'");
