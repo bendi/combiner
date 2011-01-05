@@ -72,10 +72,16 @@ public class Combiner {
 				out = new OutputStreamWriter(new FileOutputStream(outputFile), cfg.getCharset());
 			}
 
-			FileCombiner combiner = new JsFileCombiner(cfg);
+			FileCombiner combiner;
+			switch(cfg.getType()) {
+			case CSS:
+				combiner = new CssFileCombiner(cfg);
+				break;
+			default:
+				combiner = new JsFileCombiner(cfg);
+				break;
+			}
 			combiner.combine(cfg.getArguments().toArray(new String[0]), out);
-
-
 		} catch (CmdLineException e) {
 			System.err.println(e.getMessage());
 			System.err.println("Usage: java -jar combiner-x.y.z.jar [options] [input files]\n");

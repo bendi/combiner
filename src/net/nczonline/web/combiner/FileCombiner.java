@@ -190,7 +190,7 @@ public abstract class FileCombiner {
 				files.add(file);
 				log("Adding file '" + file.getAbsolutePath() + "'");
 			} else {
-				error("Couldn't find file '" + filename + "'");
+				error("Cannot find file '" + file.getAbsolutePath() + "'");
 			}
 		}
 		return files.toArray(new File[0]);

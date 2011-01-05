@@ -21,6 +21,11 @@ public class Config {
 	@Option(name="-o", aliases={"--output"}, usage="Place the output into <file>. Defaults to stdout.")
 	private File outputFile = null;
 
+	public enum TYPE{CSS,JS}
+
+	@Option(name="-t", aliases={"--type"}, usage="Specify type of combiner, allowed: js, css")
+	private TYPE type = TYPE.JS;
+
 	@Argument
 	private List<String> arguments = new ArrayList<String>();
 
@@ -54,6 +59,14 @@ public class Config {
 	}
 	public void setOutputFile(File outputFile) {
 		this.outputFile = outputFile;
+	}
+
+	public TYPE getType() {
+		return type;
+	}
+
+	public void setType(TYPE type) {
+		this.type = type;
 	}
 
 }
