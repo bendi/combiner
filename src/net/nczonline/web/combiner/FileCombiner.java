@@ -42,6 +42,11 @@ public abstract class FileCombiner {
 	private final Config cfg;
 	private final String pathPrefix;
 
+	/**
+	 *
+	 * @param cfg
+	 * @param pathPrefix
+	 */
 	public FileCombiner(Config cfg, String pathPrefix) {
 		this.cfg = cfg;
 		this.pathPrefix = pathPrefix;
@@ -51,8 +56,9 @@ public abstract class FileCombiner {
 	 * Combines a list of files and outputs the result onto the given writer.
 	 * @param files The files to combine.
 	 * @param out
+	 * @throws IOException
 	 */
-	public void combine(File[] files, Writer out){
+	public void combine(File[] files, Writer out) throws IOException{
 		Collection<SourceFile> sourceFiles = processSourceFiles(Arrays.asList(files));
 		writeToOutput(sourceFiles, out);
 	}
@@ -61,13 +67,23 @@ public abstract class FileCombiner {
 	 * Combines a list of files and outputs the result onto the given writer.
 	 * @param filenames The filenames of the files to combine.
 	 * @param out
+	 * @throws IOException
 	 */
-	public void combine(String[] filenames, Writer out) {
+	public void combine(String[] filenames, Writer out) throws IOException {
 		File[] files = getFiles(filenames);
 		combine(files, out);
 	}
 
-	private Collection<SourceFile> processSourceFiles(Collection<File> files) {
+	/**
+	 * Gets sorted collection with dependencies
+	 *
+	 * It calls itself recursively in order to check files list found by {@link #processSourceFile(SourceFile)}
+	 *
+	 * @param files
+	 * @return
+	 * @throws IOException
+	 */
+	private Collection<SourceFile> processSourceFiles(Collection<File> files) throws IOException {
 		for(File depFile : files) {
 			//get a source file object
 			SourceFile depSourceFile = getSourceFile(depFile);
@@ -80,6 +96,12 @@ public abstract class FileCombiner {
 		return new TreeSet<SourceFile>(sourceFiles.values());
 	}
 
+	/**
+	 * Simple accessor - makes sure that element is inserted only when it doesn't exist
+	 *
+	 * @param file
+	 * @return
+	 */
 	private SourceFile getSourceFile(File file) {
 		String name = file.getAbsolutePath();
 		if (!sourceFiles.containsKey(name)){
@@ -88,7 +110,14 @@ public abstract class FileCombiner {
 		return sourceFiles.get(name);
 	}
 
-	private Collection<File> processSourceFile(SourceFile sourceFile) {
+	/**
+	 * This method starts file reader and calls {@link #processFile(BufferedReader, SourceFile)}
+	 *
+	 * @param sourceFile
+	 * @return collection of files in case during analysis there were some dependencies found
+	 * @throws IOException
+	 */
+	private Collection<File> processSourceFile(SourceFile sourceFile) throws IOException {
 		BufferedReader in = null;
 		try {
 			in = new BufferedReader(new InputStreamReader(new FileInputStream(sourceFile.getName()), cfg.getCharset()));
@@ -100,9 +129,6 @@ public abstract class FileCombiner {
 				log("... No dependencies found");
 			}
 			return foundDeps;
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(1);
 		} finally {
 			if (in != null) {
 				try {
@@ -112,10 +138,10 @@ public abstract class FileCombiner {
 				}
 			}
 		}
-		return null;
 	}
 
 	/**
+	 * This method should acually do the job.
 	 *
 	 * @param in
 	 * @param sourceFile
@@ -125,6 +151,11 @@ public abstract class FileCombiner {
 	protected abstract Collection<File> processFile(BufferedReader in, SourceFile sourceFile) throws IOException;
 
 	/**
+	 * Checks file existence and circular dependency
+	 *
+	 * In case file given by {@link #pathPrefix} and filename doesn't exist it quits with exit(1)
+	 *
+	 * In case sourceFile is already a dependency of filename it leaves.
 	 *
 	 * @param filename
 	 * @param sourceFile
@@ -135,8 +166,7 @@ public abstract class FileCombiner {
 
 		//verify that the file actually exists
 		if (!depFile.isFile()){
-			error("Dependency file not found: '" + filename + "'");
-			System.exit(1);
+			throw new IllegalStateException("Dependency file not found: '" + filename + "'");
 		}
 
 		log("... has dependency on " + filename);
@@ -144,8 +174,7 @@ public abstract class FileCombiner {
 		SourceFile depSourceFile = getSourceFile(depFile);
 
 		if (!sourceFile.addDependency(depSourceFile)) {
-			error("Circular dependencies: '" + depSourceFile.getName() + "' and '" + sourceFile.getName() + "'");
-			System.exit(1);
+			throw new IllegalStateException("Circular dependencies: '" + depSourceFile.getName() + "' and '" + sourceFile.getName() + "'");
 		}
 		//if there's no contents, then it needs to be processed
 		if (depSourceFile.getContents() == null){
@@ -159,20 +188,16 @@ public abstract class FileCombiner {
 	 *
 	 * @param finalFiles
 	 * @param out
+	 * @throws IOException
 	 */
-	private void writeToOutput(Collection<SourceFile> finalFiles, Writer out){
-		try {
-			boolean separator = cfg.isSeparator();
-			for(SourceFile finalFile : finalFiles) {
-				log("Adding '" + finalFile.getName() + "' to output.");
-				if (separator){
-					out.write("\n/*------" + finalFile.getName() + "------*/\n");
-				}
-				out.write(finalFile.getContents());
+	private void writeToOutput(Collection<SourceFile> finalFiles, Writer out) throws IOException {
+		boolean separator = cfg.isSeparator();
+		for(SourceFile finalFile : finalFiles) {
+			log("Adding '" + finalFile.getName() + "' to output.");
+			if (separator){
+				out.write("\n/*------" + finalFile.getName() + "------*/\n");
 			}
-		} catch (IOException ex) {
-			ex.printStackTrace();
-			System.exit(1);
+			out.write(finalFile.getContents());
 		}
 	}
 
