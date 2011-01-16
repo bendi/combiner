@@ -101,7 +101,7 @@ public class SourceFile implements Comparable<SourceFile> {
 		}
 		int d = getDependencySize() - s.getDependencySize();
 		if (d == 0) {
-			return 1;
+			return s.getName().compareTo(getName());
 		}
 		return d;
 	}
