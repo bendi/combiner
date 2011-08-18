@@ -23,6 +23,7 @@ package net.nczonline.web.combiner;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
@@ -72,16 +73,8 @@ public class Combiner {
 				out = new OutputStreamWriter(new FileOutputStream(outputFile), cfg.getCharset());
 			}
 
-			FileCombiner combiner;
-			switch(cfg.getType()) {
-			case CSS:
-				combiner = new CssFileCombiner(cfg);
-				break;
-			default:
-				combiner = new JsFileCombiner(cfg);
-				break;
-			}
-			combiner.combine(cfg.getArguments().toArray(new String[0]), out);
+			Combiner combiner = new Combiner();
+			combiner.combine(cfg, out);
 		} catch (CmdLineException e) {
 			System.err.println(e.getMessage());
 			System.err.println("Usage: java -jar combiner-x.y.z.jar [options] [input files]\n");
@@ -99,6 +92,20 @@ public class Combiner {
 				}
 			}
 		}
+	}
+
+
+	public void combine(Config cfg, Writer out) throws IOException {
+		FileCombiner<?> combiner;
+		switch(cfg.getType()) {
+		case CSS:
+			combiner = new CssFileCombiner(cfg);
+			break;
+		default:
+			combiner = new JsFileCombiner(cfg);
+			break;
+		}
+		combiner.combine(cfg.getArguments().toArray(new String[0]), out);
 	}
 
 }

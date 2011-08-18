@@ -28,28 +28,38 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Writer;
+import java.lang.reflect.ParameterizedType;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-public abstract class FileCombiner {
+public abstract class FileCombiner<T extends Comparator<SourceFile>> {
 
-	private Map<String, SourceFile> sourceFiles = new HashMap<String, SourceFile>();
+	private Map<String, SourceFile> sourceFiles = new LinkedHashMap<String, SourceFile>();
 	private final Config cfg;
 	private final String pathPrefix;
+	private T comparator;
+
 
 	/**
 	 *
 	 * @param cfg
 	 * @param pathPrefix
 	 */
+	@SuppressWarnings("unchecked")
 	public FileCombiner(Config cfg, String pathPrefix) {
 		this.cfg = cfg;
 		this.pathPrefix = pathPrefix;
+		try {
+			comparator = ((Class<T>)((ParameterizedType)getClass().getGenericSuperclass()).getActualTypeArguments()[0]).newInstance();
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	/**
@@ -58,8 +68,10 @@ public abstract class FileCombiner {
 	 * @param out
 	 * @throws IOException
 	 */
-	public void combine(File[] files, Writer out) throws IOException{
-		Collection<SourceFile> sourceFiles = processSourceFiles(Arrays.asList(files));
+	public void combine(File[] files, Writer out) throws IOException {
+		processSourceFiles(Arrays.asList(files));
+		Collection<SourceFile> sourceFiles = new TreeSet<SourceFile>(comparator);
+		sourceFiles.addAll(this.sourceFiles.values());
 		writeToOutput(sourceFiles, out);
 	}
 
@@ -83,7 +95,7 @@ public abstract class FileCombiner {
 	 * @return
 	 * @throws IOException
 	 */
-	private Collection<SourceFile> processSourceFiles(Collection<File> files) throws IOException {
+	private void processSourceFiles(Collection<File> files) throws IOException {
 		for(File depFile : files) {
 			//get a source file object
 			SourceFile depSourceFile = getSourceFile(depFile);
@@ -93,7 +105,6 @@ public abstract class FileCombiner {
 				processSourceFiles(foundDeps);
 			}
 		}
-		return new TreeSet<SourceFile>(sourceFiles.values());
 	}
 
 	/**
@@ -150,6 +161,10 @@ public abstract class FileCombiner {
 	 */
 	protected abstract Collection<File> processFile(BufferedReader in, SourceFile sourceFile) throws IOException;
 
+	protected Collection<SourceFile> preprocessBeforeOutput(Collection<SourceFile> list) {
+		return list;
+	}
+
 	/**
 	 * Checks file existence and circular dependency
 	 *
@@ -192,7 +207,7 @@ public abstract class FileCombiner {
 	 */
 	private void writeToOutput(Collection<SourceFile> finalFiles, Writer out) throws IOException {
 		boolean separator = cfg.isSeparator();
-		for(SourceFile finalFile : finalFiles) {
+		for(SourceFile finalFile : preprocessBeforeOutput(finalFiles)) {
 			log("Adding '" + finalFile.getName() + "' to output.");
 			if (separator){
 				out.write("\n/*------" + finalFile.getName() + "------*/\n");

@@ -4,10 +4,34 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 
-public class JsFileCombiner extends FileCombiner {
+import net.nczonline.web.combiner.JsFileCombiner.JsComparator;
+
+
+public class JsFileCombiner extends FileCombiner<JsComparator> {
+
+	public static class JsComparator implements Comparator<SourceFile> {
+
+		public int compare(SourceFile s1, SourceFile s2) {
+			if (s1.equals(s2)) {
+				return 0;
+			}
+			if (s1.hasDependency(s2)) {
+				return 1;
+			}
+			if(s2.hasDependency(s1)) {
+				return -1;
+			}
+			int d = s1.getDependencySize() - s2.getDependencySize();
+			if (d == 0) {
+				return s2.getName().compareTo(s1.getName());
+			}
+			return d;
+		}
+	}
 
 	public static final String PATH_PREFIX = "src/";
 

@@ -26,7 +26,7 @@ package net.nczonline.web.combiner;
 import java.util.HashSet;
 import java.util.Set;
 
-public class SourceFile implements Comparable<SourceFile> {
+public class SourceFile {
 
 	private final String name;
 	private final Set<SourceFile> dependencies = new HashSet<SourceFile>();
@@ -89,26 +89,8 @@ public class SourceFile implements Comparable<SourceFile> {
 	}
 
 	@Override
-	public int compareTo(SourceFile s) {
-		if (equals(s)) {
-			return 0;
-		}
-		if (hasDependency(s)) {
-			return 1;
-		}
-		if(s.hasDependency(this)) {
-			return -1;
-		}
-		int d = getDependencySize() - s.getDependencySize();
-		if (d == 0) {
-			return s.getName().compareTo(getName());
-		}
-		return d;
-	}
-
-	@Override
 	public boolean equals(Object o) {
-		if (!(o instanceof SourceFile)) {
+		if (o == null || !(o instanceof SourceFile)) {
 			return false;
 		}
 		SourceFile s = (SourceFile)o;

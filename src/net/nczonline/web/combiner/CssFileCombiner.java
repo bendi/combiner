@@ -3,11 +3,26 @@ package net.nczonline.web.combiner;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Comparator;
+import java.util.List;
 
-public class CssFileCombiner extends FileCombiner {
+import net.nczonline.web.combiner.CssFileCombiner.CssComparator;
+
+
+public class CssFileCombiner extends FileCombiner<CssComparator> {
+
+	public static class CssComparator implements Comparator<SourceFile> {
+
+		public int compare(SourceFile o1, SourceFile o2) {
+			if (o1.equals(o2)) {
+				return 0;
+			}
+			return 1;
+		}
+
+	}
 
 	private static String PATH_PREFIX = "resources/themes/";
 
@@ -17,7 +32,7 @@ public class CssFileCombiner extends FileCombiner {
 
 	@Override
 	protected Collection<File> processFile(BufferedReader in, SourceFile sourceFile) throws IOException {
-		Set<File> foundDeps = new HashSet<File>(){
+		List<File> foundDeps = new ArrayList<File>(){
 			private static final long serialVersionUID = 1L;
 			public boolean add(File f) {
 				if (f == null) {
@@ -43,5 +58,11 @@ public class CssFileCombiner extends FileCombiner {
 
 	private static String f(String im) {
 		return im.replaceAll("@import url\\(\"(.*?)\"\\);", "$1");
+	}
+
+	@Override
+	protected Collection<SourceFile> preprocessBeforeOutput(Collection<SourceFile> col) {
+		List<SourceFile> list = new ArrayList<SourceFile>(col);
+		return list.subList(1, list.size());
 	}
 }
