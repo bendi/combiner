@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 <project name="Combiner" default="build.jar" basedir=".">
- 
+
     <target name="clean" depends="-load.properties">
         <delete dir="${build.dir}" quiet="true"/>
     </target>
- 
+
     <target name="-load.properties">
         <property file="ant.properties"/>
     </target>
- 
+
     <target name="-init" depends="-load.properties">
         <mkdir dir="${build.dir}"/>
     </target>
- 
+
     <target name="build.classes" depends="-init">
         <mkdir dir="${build.dir}/classes"/>
         <javac srcdir="${src.dir}"
@@ -20,16 +20,16 @@
                includes="**/*.java"
                deprecation="off"
                debug="on"
-               source="1.4">
+               source="1.5">
             <classpath>
-                <pathelement location="${lib.dir}/jargs-1.0.jar"/>
+                <pathelement location="${lib.dir}/args4j-2.0.16.jar"/>
             </classpath>
         </javac>
     </target>
- 
+
     <target name="build.jar" depends="build.classes">
         <mkdir dir="${build.dir}/jar"/>
-        <unjar src="${lib.dir}/jargs-1.0.jar" dest="${build.dir}/jar"/>
+        <unjar src="${lib.dir}/args4j-2.0.16.jar" dest="${build.dir}/jar"/>
         <copy todir="${build.dir}/jar">
             <fileset dir="${build.dir}/classes" includes="**/*.class"/>
         </copy>
@@ -39,7 +39,7 @@
             </manifest>
         </jar>
     </target>
- 
+
     <target name="build.dist.package" depends="build.jar">
         <mkdir dir="${build.dir}/${dist.package.name}"/>
         <mkdir dir="${build.dir}/${dist.package.name}/build"/>
@@ -58,5 +58,5 @@
              basedir="${build.dir}"
              includes="${dist.package.name}/**/*"/>
     </target>
- 
+
 </project>
